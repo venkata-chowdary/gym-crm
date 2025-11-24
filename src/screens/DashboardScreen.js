@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Pressable, Dimensions, TextInput } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Pressable, Dimensions, TextInput, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../services/supabase';
 import { useAuthStore } from '../store/authStore';
 import { borderRadius, colors, shadows, spacing, typography } from '../theme';
-import { Search, Plus, CreditCard, Users, ChevronRight, Users as UsersIcon, UserCheck, UserX, TrendingUp, Calendar } from 'lucide-react-native';
+import { Search, Plus, CreditCard, Users, ChevronRight, Users as UsersIcon, UserCheck, UserX, TrendingUp, Calendar, BarChart3 } from 'lucide-react-native';
 import { StackedBarChart } from 'react-native-chart-kit';
 import ProfileMenu from '../components/ProfileMenu';
 import MetricCard from '../components/MetricCard';
+import { MemberCardSkeleton, DashboardSkeleton } from '../components/SkeletonLoader';
+import { showToast } from '../components/Toast';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -16,6 +18,7 @@ export default function DashboardScreen({ navigation }) {
     const [gym, setGym] = useState(null);
     const [trialDaysLeft, setTrialDaysLeft] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [menuVisible, setMenuVisible] = useState(false);
     const [metrics, setMetrics] = useState({ totalMembers: 0, activeMembers: 0, expiringSoon: 0, newJoins: 0 });
     const [expiringMembers, setExpiringMembers] = useState([]);
@@ -35,6 +38,13 @@ export default function DashboardScreen({ navigation }) {
         return unsubscribe;
     }, [navigation]);
 
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await Promise.all([fetchGymDetails(), fetchMetrics()]);
+        setRefreshing(false);
+        showToast('Dashboard updated', 'success');
+    }, []);
+
     const fetchMetrics = async () => {
         try {
             if (!user) return;
@@ -51,7 +61,7 @@ export default function DashboardScreen({ navigation }) {
             sixMonthsAgoDate.setDate(1);
             const sixMonthsAgo = sixMonthsAgoDate.toISOString().split('T')[0];
 
-            const [total, active, expiring, newJoins, expiringList, joinsHistory] = await Promise.all([
+            const [total, active, expiring, newJoins, expiringList, joinsHistory, plansData] = await Promise.all([
                 supabase.from('members').select('*', { count: 'exact', head: true }).eq('gym_id', gymData.id),
                 supabase.from('members').select('*', { count: 'exact', head: true }).eq('gym_id', gymData.id).gte('expiry_date', today),
                 supabase.from('members').select('*', { count: 'exact', head: true }).eq('gym_id', gymData.id).gte('expiry_date', today).lte('expiry_date', sevenDaysLater),
@@ -59,7 +69,9 @@ export default function DashboardScreen({ navigation }) {
                 // Fetch actual expiring members list
                 supabase.from('members').select('*').eq('gym_id', gymData.id).gte('expiry_date', today).lte('expiry_date', sevenDaysLater).order('expiry_date', { ascending: true }).limit(5),
                 // Fetch join history with plan for chart
-                supabase.from('members').select('join_date, plan').eq('gym_id', gymData.id).gte('join_date', sixMonthsAgo)
+                supabase.from('members').select('join_date, plan').eq('gym_id', gymData.id).gte('join_date', sixMonthsAgo),
+                // Fetch plans for chart legend
+                supabase.from('plans').select('name').eq('gym_id', gymData.id)
             ]);
 
             setMetrics({
@@ -70,18 +82,33 @@ export default function DashboardScreen({ navigation }) {
             });
 
             setExpiringMembers(expiringList.data || []);
-            processChartData(joinsHistory.data || []);
+
+            // Extract configured plan names
+            const configuredPlans = (plansData.data || []).map(p => p.name);
+
+            // Extract plans from history (to include legacy plans)
+            const historyPlans = (joinsHistory.data || []).map(m => m.plan);
+
+            // Merge and unique
+            const allPlans = [...new Set([...configuredPlans, ...historyPlans])].filter(Boolean);
+
+            processChartData(joinsHistory.data || [], allPlans);
 
         } catch (error) {
             console.error('Error fetching metrics:', error);
         }
     };
 
-    const processChartData = (data) => {
+    const processChartData = (data, planNames) => {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const last6Months = [];
-        // Data structure: [[monthly, quarterly, annual], ...]
         const chartValues = [];
+
+        // Color palette for dynamic plans
+        const palette = ['#2563eb', '#60a5fa', '#bfdbfe', '#1e40af', '#93c5fd', '#3b82f6'];
+        const barColors = planNames.length > 0
+            ? planNames.map((_, i) => palette[i % palette.length])
+            : ['#2563eb']; // Default if no plans
 
         const today = new Date();
         for (let i = 5; i >= 0; i--) {
@@ -91,7 +118,8 @@ export default function DashboardScreen({ navigation }) {
                 monthIndex: d.getMonth(),
                 year: d.getFullYear()
             });
-            chartValues.push([0, 0, 0]); // [Monthly, Quarterly, Annual]
+            // Initialize with 0s for each plan
+            chartValues.push(new Array(Math.max(planNames.length, 1)).fill(0));
         }
 
         data.forEach(member => {
@@ -102,12 +130,9 @@ export default function DashboardScreen({ navigation }) {
             // Find which bucket this falls into
             const index = last6Months.findIndex(m => m.monthIndex === monthIndex && m.year === year);
             if (index !== -1) {
-                if (member.plan === 'monthly') {
-                    chartValues[index][0]++;
-                } else if (member.plan === 'quarterly') {
-                    chartValues[index][1]++;
-                } else if (member.plan === 'annual') {
-                    chartValues[index][2]++;
+                const planIndex = planNames.indexOf(member.plan);
+                if (planIndex !== -1) {
+                    chartValues[index][planIndex]++;
                 }
             }
         });
@@ -125,9 +150,9 @@ export default function DashboardScreen({ navigation }) {
 
         setChartData({
             labels: last6Months.map(m => m.label),
-            legend: ['Monthly', 'Quarterly', 'Annual'],
+            legend: planNames.length > 0 ? planNames : ['No Plans'],
             data: chartValues,
-            barColors: ['#2563eb', '#60a5fa', '#bfdbfe'] // Strong Blue, Medium Blue, Light Blue
+            barColors: barColors
         });
     };
     const fetchGymDetails = async () => {
@@ -214,6 +239,23 @@ export default function DashboardScreen({ navigation }) {
         );
     };
 
+    if (loading) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={{ paddingHorizontal: spacing.l, paddingTop: spacing.m }}>
+                    <View style={styles.header}>
+                        <View>
+                            <Text style={typography.h1}>Hello, Owner</Text>
+                            <Text style={typography.bodySmall}>Welcome to GymDesk</Text>
+                        </View>
+                        <View style={styles.profilePlaceholder}><Text style={{ fontSize: 18 }}>👤</Text></View>
+                    </View>
+                </View>
+                <DashboardSkeleton />
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             <TouchableOpacity style={styles.trialStrip} onPress={() => Alert.alert('Subscription', 'Go to subscription page')} activeOpacity={0.8}>
@@ -227,7 +269,13 @@ export default function DashboardScreen({ navigation }) {
                 </View>
             </TouchableOpacity>
 
-            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+                }
+            >
                 <View style={styles.header}>
                     <View>
                         <Text style={typography.h1}>Hello, {gym ? gym.owner_name.split(' ')[0] : 'Owner'}</Text>
@@ -241,6 +289,7 @@ export default function DashboardScreen({ navigation }) {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsContainer}>
                     <QuickAction icon={Plus} label="Add Member" onPress={() => navigation.navigate('AddMember')} />
                     <QuickAction icon={CreditCard} label="Record Payment" onPress={() => navigation.navigate('RecordPayment')} />
+                    <QuickAction icon={BarChart3} label="Analytics" onPress={() => navigation.navigate('Analytics')} />
                     <QuickAction icon={Users} label="View All" onPress={() => navigation.navigate('MemberList')} />
                 </ScrollView>
 
@@ -313,18 +362,12 @@ export default function DashboardScreen({ navigation }) {
 
                         {/* Custom Legend */}
                         <View style={styles.legendContainer}>
-                            <View style={styles.legendItem}>
-                                <View style={[styles.legendDot, { backgroundColor: '#2563eb' }]} />
-                                <Text style={styles.legendText}>Monthly</Text>
-                            </View>
-                            <View style={styles.legendItem}>
-                                <View style={[styles.legendDot, { backgroundColor: '#60a5fa' }]} />
-                                <Text style={styles.legendText}>Quarterly</Text>
-                            </View>
-                            <View style={styles.legendItem}>
-                                <View style={[styles.legendDot, { backgroundColor: '#bfdbfe' }]} />
-                                <Text style={styles.legendText}>Annual</Text>
-                            </View>
+                            {chartData.legend.map((label, index) => (
+                                <View key={index} style={styles.legendItem}>
+                                    <View style={[styles.legendDot, { backgroundColor: chartData.barColors[index] }]} />
+                                    <Text style={styles.legendText}>{label}</Text>
+                                </View>
+                            ))}
                         </View>
 
                         <View style={{ width: '100%', paddingHorizontal: spacing.xs }}>
@@ -377,7 +420,7 @@ const styles = StyleSheet.create({
     trendContainer: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.l, marginBottom: 4 },
     trendText: { fontSize: 14, fontWeight: '700', color: colors.text },
     trendSubtext: { fontSize: 12, color: colors.textSecondary },
-    legendContainer: { flexDirection: 'row', justifyContent: 'center', gap: spacing.l, marginTop: spacing.m, marginBottom: spacing.s },
+    legendContainer: { flexDirection: 'row', justifyContent: 'center', gap: spacing.l, marginTop: spacing.m, marginBottom: spacing.s, flexWrap: 'wrap' },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
     legendDot: { width: 8, height: 8, borderRadius: 4 },
     legendText: { fontSize: 12, color: colors.textSecondary, fontWeight: '500' },

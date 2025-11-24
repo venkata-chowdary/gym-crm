@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { borderRadius, colors, spacing } from '../theme';
+import { borderRadius, colors, spacing, shadows } from '../theme';
 
 export default function SkeletonLoader({ width = '100%', height = 20, style, borderRadiusValue = borderRadius.m }) {
     return (
@@ -55,6 +55,28 @@ export const MemberDetailSkeleton = () => (
                 <SkeletonLoader width="60%" height={16} />
             </View>
         </View>
+    </View>
+);
+
+export const DashboardSkeleton = () => (
+    <View style={styles.detailContainer}>
+        {/* Quick Actions */}
+        <View style={{ flexDirection: 'row', marginBottom: spacing.xl, gap: spacing.s }}>
+            <SkeletonLoader width={100} height={40} borderRadiusValue={borderRadius.full} style={{ ...shadows.small }} />
+            <SkeletonLoader width={120} height={40} borderRadiusValue={borderRadius.full} style={{ ...shadows.small }} />
+            <SkeletonLoader width={90} height={40} borderRadiusValue={borderRadius.full} style={{ ...shadows.small }} />
+        </View>
+
+        {/* Metrics Grid */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: spacing.xl }}>
+            <SkeletonLoader width="48%" height={120} borderRadiusValue={borderRadius.l} style={{ marginBottom: spacing.m, ...shadows.small }} />
+            <SkeletonLoader width="48%" height={120} borderRadiusValue={borderRadius.l} style={{ marginBottom: spacing.m, ...shadows.small }} />
+            <SkeletonLoader width="48%" height={120} borderRadiusValue={borderRadius.l} style={{ ...shadows.small }} />
+            <SkeletonLoader width="48%" height={120} borderRadiusValue={borderRadius.l} style={{ ...shadows.small }} />
+        </View>
+
+        {/* Chart Section */}
+        <SkeletonLoader width="100%" height={220} borderRadiusValue={borderRadius.l} style={{ ...shadows.small }} />
     </View>
 );
 

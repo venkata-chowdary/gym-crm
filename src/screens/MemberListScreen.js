@@ -292,7 +292,7 @@ export default function MemberListScreen({ navigation, route }) {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     header: { padding: spacing.l, paddingBottom: spacing.m },
-    searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, marginHorizontal: spacing.l, marginBottom: spacing.m, paddingHorizontal: spacing.m, height: 48, borderRadius: borderRadius.full, gap: spacing.s, ...shadows.small },
+    searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, marginHorizontal: spacing.l, marginBottom: spacing.m, paddingHorizontal: spacing.m, height: 48, borderRadius: borderRadius.m, borderWidth: 1, borderColor: colors.border, gap: spacing.s, ...shadows.small },
     searchInput: { flex: 1, fontSize: 15, color: colors.text },
     filterContainer: { paddingLeft: spacing.l, marginBottom: spacing.xs, height: 36 },
     filterChip: { paddingHorizontal: spacing.m, paddingVertical: spacing.xs, borderRadius: borderRadius.full, backgroundColor: colors.surface, marginRight: spacing.s, height: 32, justifyContent: 'center', ...shadows.small },

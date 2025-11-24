@@ -82,6 +82,19 @@ export default function SettingsScreen({ navigation }) {
                     </View>
                 </View>
 
+                {/* Gym Management */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Gym Management</Text>
+                    <View style={styles.card}>
+                        <SettingItem
+                            icon={FileText}
+                            label="Manage Plans"
+                            type="link"
+                            onPress={() => navigation.navigate('ManagePlans')}
+                        />
+                    </View>
+                </View>
+
                 {/* Account */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Account</Text>

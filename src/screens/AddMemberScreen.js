@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../services/supabase';
@@ -11,22 +11,50 @@ import { showToast } from '../components/Toast';
 
 export default function AddMemberScreen({ navigation }) {
     const user = useAuthStore((state) => state.user);
+    const [plans, setPlans] = useState([]);
+    const [loadingPlans, setLoadingPlans] = useState(true);
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         phone: '',
-        plan: 'monthly',
+        planId: null, // Store plan ID
         joinDate: new Date().toISOString().split('T')[0],
         notes: '',
     });
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
 
-    const plans = [
-        { value: 'monthly', label: 'Monthly', duration: 30 },
-        { value: 'quarterly', label: 'Quarterly (3 months)', duration: 90 },
-        { value: 'annual', label: 'Annual (12 months)', duration: 365 },
-    ];
+    useEffect(() => {
+        fetchPlans();
+    }, []);
+
+    const fetchPlans = async () => {
+        try {
+            if (!user) return;
+            const { data: gymData } = await supabase.from('gyms').select('id').eq('owner_id', user.id).single();
+            if (!gymData) return;
+
+            const { data, error } = await supabase
+                .from('plans')
+                .select('*')
+                .eq('gym_id', gymData.id)
+                .order('created_at');
+
+            if (error) throw error;
+            setPlans(data || []);
+
+            // Select first plan by default if available
+            if (data && data.length > 0) {
+                setFormData(prev => ({ ...prev, planId: data[0].id }));
+            }
+        } catch (error) {
+            console.error('Error fetching plans:', error);
+            showToast('Failed to load plans', 'error');
+        } finally {
+            setLoadingPlans(false);
+        }
+    };
 
     const validateForm = () => {
         const newErrors = {};
@@ -39,12 +67,17 @@ export default function AddMemberScreen({ navigation }) {
         if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
             newErrors.email = 'Please enter a valid email';
         }
+        if (!formData.planId) {
+            newErrors.plan = 'Please select a membership plan';
+        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    const calculateExpiryDate = (joinDate, plan) => {
-        const selectedPlan = plans.find(p => p.value === plan);
+    const calculateExpiryDate = (joinDate, planId) => {
+        const selectedPlan = plans.find(p => p.id === planId);
+        if (!selectedPlan) return joinDate;
+
         const join = new Date(joinDate);
         const expiry = new Date(join);
         expiry.setDate(expiry.getDate() + selectedPlan.duration);
@@ -68,28 +101,46 @@ export default function AddMemberScreen({ navigation }) {
             if (gymError) throw new Error('Could not find your gym. Please contact support.');
             if (!gymData) throw new Error('No gym found for your account.');
 
-            const expiryDate = calculateExpiryDate(formData.joinDate, formData.plan);
+            const selectedPlan = plans.find(p => p.id === formData.planId);
+            const expiryDate = calculateExpiryDate(formData.joinDate, formData.planId);
 
-            const { data, error } = await supabase
+            // 1. Create Member
+            const { data: memberData, error: memberError } = await supabase
                 .from('members')
                 .insert([{
                     gym_id: gymData.id,
                     name: formData.name.trim(),
                     email: formData.email.trim() || null,
                     phone: formData.phone.trim(),
-                    plan: formData.plan,
+                    plan: selectedPlan.name, // Store plan name for display
+                    amount: selectedPlan.amount, // Store current amount
                     join_date: formData.joinDate,
                     expiry_date: expiryDate,
                     notes: formData.notes.trim() || null,
                 }])
-                .select();
+                .select()
+                .single();
 
-            if (error) throw error;
+            if (memberError) throw memberError;
+
+            // 2. Record Payment (Always)
+            if (memberData) {
+                const { error: paymentError } = await supabase
+                    .from('payments')
+                    .insert([{
+                        member_id: memberData.id,
+                        amount: selectedPlan.amount,
+                        paid_on: formData.joinDate
+                    }]);
+
+                if (paymentError) {
+                    console.error('Error recording payment:', paymentError);
+                    showToast('Member added, but payment recording failed.', 'warning');
+                }
+            }
 
             showToast('Member added successfully!', 'success');
             setTimeout(() => {
-                setFormData({ name: '', email: '', phone: '', plan: 'monthly', joinDate: new Date().toISOString().split('T')[0], notes: '' });
-                setErrors({});
                 navigation.goBack();
             }, 500);
         } catch (error) {
@@ -101,15 +152,18 @@ export default function AddMemberScreen({ navigation }) {
 
     const PlanOption = ({ plan }) => (
         <TouchableOpacity
-            style={[styles.planOption, formData.plan === plan.value && styles.planOptionActive]}
-            onPress={() => setFormData({ ...formData, plan: plan.value })}
+            style={[styles.planOption, formData.planId === plan.id && styles.planOptionActive]}
+            onPress={() => setFormData({ ...formData, planId: plan.id })}
         >
-            <View style={[styles.planRadio, formData.plan === plan.value && styles.planRadioActive]}>
-                {formData.plan === plan.value && <View style={styles.planRadioInner} />}
+            <View style={[styles.planRadio, formData.planId === plan.id && styles.planRadioActive]}>
+                {formData.planId === plan.id && <View style={styles.planRadioInner} />}
             </View>
-            <Text style={[styles.planLabel, formData.plan === plan.value && styles.planLabelActive]}>
-                {plan.label}
-            </Text>
+            <View>
+                <Text style={[styles.planLabel, formData.planId === plan.id && styles.planLabelActive]}>
+                    {plan.name}
+                </Text>
+                <Text style={styles.planSubtext}>₹{plan.amount} • {plan.duration} Days</Text>
+            </View>
         </TouchableOpacity>
     );
 
@@ -141,9 +195,16 @@ export default function AddMemberScreen({ navigation }) {
 
                 <View style={styles.formGroup}>
                     <Text style={styles.label}>Membership Plan *</Text>
-                    <View style={styles.planContainer}>
-                        {plans.map((plan) => (<PlanOption key={plan.value} plan={plan} />))}
-                    </View>
+                    {loadingPlans ? (
+                        <Text style={{ color: colors.textSecondary }}>Loading plans...</Text>
+                    ) : plans.length === 0 ? (
+                        <Text style={{ color: colors.error }}>No plans found. Please create plans in Settings.</Text>
+                    ) : (
+                        <View style={styles.planContainer}>
+                            {plans.map((plan) => (<PlanOption key={plan.id} plan={plan} />))}
+                        </View>
+                    )}
+                    {errors.plan && <Text style={{ color: colors.error, marginTop: 4 }}>{errors.plan}</Text>}
                 </View>
 
                 <View style={styles.formGroup}>
@@ -152,7 +213,9 @@ export default function AddMemberScreen({ navigation }) {
                         <Calendar size={20} color={colors.textSecondary} />
                         <Text style={styles.dateText}>{new Date(formData.joinDate).toLocaleDateString()}</Text>
                     </View>
-                    <Text style={styles.helperText}>Expiry: {new Date(calculateExpiryDate(formData.joinDate, formData.plan)).toLocaleDateString()}</Text>
+                    <Text style={styles.helperText}>
+                        Expiry: {formData.planId ? new Date(calculateExpiryDate(formData.joinDate, formData.planId)).toLocaleDateString() : '-'}
+                    </Text>
                 </View>
 
                 <View style={styles.formGroup}>
@@ -184,10 +247,11 @@ const styles = StyleSheet.create({
     planRadioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
     planLabel: { fontSize: 15, color: colors.text },
     planLabelActive: { fontWeight: '600', color: colors.primary },
+    planSubtext: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
     dateInput: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, padding: spacing.m, borderRadius: borderRadius.m, gap: spacing.s, ...shadows.small },
     dateText: { fontSize: 15, color: colors.text },
     helperText: { fontSize: 12, color: colors.textSecondary, marginTop: spacing.xs },
-    notesInput: { backgroundColor: colors.surface, borderRadius: borderRadius.m, padding: spacing.m, fontSize: 15, color: colors.text, minHeight: 100, ...shadows.small },
+    notesInput: { backgroundColor: colors.surface, borderRadius: borderRadius.m, padding: spacing.m, fontSize: 15, color: colors.text, minHeight: 100, borderWidth: 1, borderColor: colors.border },
     submitButton: { marginTop: spacing.m },
     cancelButton: { alignItems: 'center', padding: spacing.m, marginTop: spacing.s },
     cancelText: { fontSize: 15, color: colors.textSecondary, fontWeight: '600' },

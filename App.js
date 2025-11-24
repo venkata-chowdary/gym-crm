@@ -17,6 +17,9 @@ import MemberDetailScreen from './src/screens/MemberDetailScreen';
 import RecordPaymentScreen from './src/screens/RecordPaymentScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import CreatePlansScreen from './src/screens/CreatePlansScreen';
+import ManagePlansScreen from './src/screens/ManagePlansScreen';
+import AnalyticsScreen from './src/screens/AnalyticsScreen';
 import Toast from './src/components/Toast';
 
 
@@ -91,6 +94,9 @@ export default function App() {
           <Stack.Screen name="MemberDetail" component={MemberDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="RecordPayment" component={RecordPaymentScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="CreatePlans" component={CreatePlansScreen} />
+          <Stack.Screen name="ManagePlans" component={ManagePlansScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>

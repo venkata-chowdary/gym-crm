@@ -61,7 +61,7 @@ export default function GymDetailsScreen({ navigation }) {
 
             if (gymError) throw gymError;
 
-            navigation.navigate('PendingVerification');
+            navigation.navigate('CreatePlans');
         } catch (error) {
             Alert.alert('Error', error.message);
         } finally {
