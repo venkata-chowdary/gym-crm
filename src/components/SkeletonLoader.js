@@ -80,6 +80,18 @@ export const DashboardSkeleton = () => (
     </View>
 );
 
+export const PlanItemSkeleton = () => (
+    <View style={styles.memberCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
+                <SkeletonLoader width="40%" height={18} style={{ marginBottom: spacing.xs }} />
+                <SkeletonLoader width="60%" height={14} />
+            </View>
+            <SkeletonLoader width={24} height={24} borderRadiusValue={borderRadius.s} />
+        </View>
+    </View>
+);
+
 const styles = StyleSheet.create({
     skeleton: {
         backgroundColor: colors.surface,

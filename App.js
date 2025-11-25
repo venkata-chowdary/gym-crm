@@ -20,6 +20,9 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import CreatePlansScreen from './src/screens/CreatePlansScreen';
 import ManagePlansScreen from './src/screens/ManagePlansScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';
+import HelpSupportScreen from './src/screens/HelpSupportScreen';
+import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
+import TermsOfUseScreen from './src/screens/TermsOfUseScreen';
 import Toast from './src/components/Toast';
 
 
@@ -98,6 +101,9 @@ export default function App() {
           <Stack.Screen name="ManagePlans" component={ManagePlansScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="TermsOfUse" component={TermsOfUseScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
       <Toast />

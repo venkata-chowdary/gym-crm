@@ -8,11 +8,12 @@ import { ArrowLeft, Plus, Trash2, X } from 'lucide-react-native';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { showToast } from '../components/Toast';
+import { PlanItemSkeleton } from '../components/SkeletonLoader';
 
 export default function ManagePlansScreen({ navigation }) {
     const user = useAuthStore((state) => state.user);
     const [plans, setPlans] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
     const [gymId, setGymId] = useState(null);
 
@@ -21,14 +22,29 @@ export default function ManagePlansScreen({ navigation }) {
     const [amount, setAmount] = useState('');
     const [duration, setDuration] = useState('');
     const [adding, setAdding] = useState(false);
+    const [editingPlan, setEditingPlan] = useState(null);
 
     useEffect(() => {
-        fetchGymId();
+        fetchAllData();
     }, []);
+
+    const fetchAllData = async () => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        try {
+            await Promise.all([fetchGymId(), fetchPlans()]);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const fetchGymId = async () => {
         try {
-            if (!user) return;
             const { data, error } = await supabase
                 .from('gyms')
                 .select('id')
@@ -38,7 +54,6 @@ export default function ManagePlansScreen({ navigation }) {
             if (error) throw error;
             if (data) {
                 setGymId(data.id);
-                fetchPlans(data.id);
             }
         } catch (error) {
             console.error('Error fetching gym:', error);
@@ -46,12 +61,12 @@ export default function ManagePlansScreen({ navigation }) {
         }
     };
 
-    const fetchPlans = async (id) => {
+    const fetchPlans = async () => {
         try {
+            // RLS policies automatically filter plans for the current owner
             const { data, error } = await supabase
                 .from('plans')
                 .select('*')
-                .eq('gym_id', id)
                 .order('created_at');
 
             if (error) throw error;
@@ -61,34 +76,71 @@ export default function ManagePlansScreen({ navigation }) {
         }
     };
 
-    const handleAddPlan = async () => {
+    const handleSavePlan = async () => {
         if (!planName || !amount || !duration) {
             Alert.alert('Missing Fields', 'Please fill in all fields');
             return;
         }
 
+        if (editingPlan) {
+            Alert.alert(
+                'Update Plan',
+                'Changes will apply to new members and future renewals. Existing subscriptions remain unchanged.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Update', onPress: processSavePlan }
+                ]
+            );
+        } else {
+            processSavePlan();
+        }
+    };
+
+    const processSavePlan = async () => {
         setAdding(true);
         try {
-            const { error } = await supabase
-                .from('plans')
-                .insert([{
-                    gym_id: gymId,
-                    name: planName,
-                    amount: Number(amount),
-                    duration: Number(duration)
-                }]);
+            let error;
+            if (editingPlan) {
+                const { error: updateError } = await supabase
+                    .from('plans')
+                    .update({
+                        name: planName,
+                        amount: Number(amount),
+                        duration: Number(duration)
+                    })
+                    .eq('id', editingPlan.id);
+                error = updateError;
+            } else {
+                const { error: insertError } = await supabase
+                    .from('plans')
+                    .insert([{
+                        gym_id: gymId,
+                        name: planName,
+                        amount: Number(amount),
+                        duration: Number(duration)
+                    }]);
+                error = insertError;
+            }
 
             if (error) throw error;
 
-            showToast('Plan added successfully', 'success');
+            showToast(editingPlan ? 'Plan updated' : 'Plan added successfully', 'success');
             setModalVisible(false);
             resetForm();
-            fetchPlans(gymId);
+            fetchPlans();
         } catch (error) {
             Alert.alert('Error', error.message);
         } finally {
             setAdding(false);
         }
+    };
+
+    const handleEditPlan = (plan) => {
+        setEditingPlan(plan);
+        setPlanName(plan.name);
+        setAmount(plan.amount.toString());
+        setDuration(plan.duration.toString());
+        setModalVisible(true);
     };
 
     const handleDeletePlan = async (id) => {
@@ -107,7 +159,7 @@ export default function ManagePlansScreen({ navigation }) {
 
                             if (error) throw error;
                             showToast('Plan deleted', 'success');
-                            fetchPlans(gymId);
+                            fetchPlans();
                         } catch (error) {
                             showToast('Failed to delete plan', 'error');
                         }
@@ -121,6 +173,7 @@ export default function ManagePlansScreen({ navigation }) {
         setPlanName('');
         setAmount('');
         setDuration('');
+        setEditingPlan(null);
     };
 
     return (
@@ -134,28 +187,36 @@ export default function ManagePlansScreen({ navigation }) {
             </View>
 
             <View style={styles.content}>
-                <FlatList
-                    data={plans}
-                    keyExtractor={item => item.id}
-                    renderItem={({ item }) => (
-                        <View style={styles.planItem}>
-                            <View>
-                                <Text style={styles.planName}>{item.name}</Text>
-                                <Text style={styles.planDetails}>₹{item.amount} • {item.duration} Days</Text>
-                            </View>
-                            <TouchableOpacity onPress={() => handleDeletePlan(item.id)}>
-                                <Trash2 size={20} color={colors.error} />
+                {loading ? (
+                    <View>
+                        <PlanItemSkeleton />
+                        <PlanItemSkeleton />
+                        <PlanItemSkeleton />
+                    </View>
+                ) : (
+                    <FlatList
+                        data={plans}
+                        keyExtractor={item => item.id}
+                        renderItem={({ item }) => (
+                            <TouchableOpacity style={styles.planItem} onPress={() => handleEditPlan(item)}>
+                                <View>
+                                    <Text style={styles.planName}>{item.name}</Text>
+                                    <Text style={styles.planDetails}>₹{item.amount} • {item.duration} Days</Text>
+                                </View>
+                                <TouchableOpacity onPress={() => handleDeletePlan(item.id)}>
+                                    <Trash2 size={20} color={colors.error} />
+                                </TouchableOpacity>
                             </TouchableOpacity>
-                        </View>
-                    )}
-                    contentContainerStyle={{ paddingBottom: spacing.xl }}
-                    ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>No plans found.</Text>
-                            <Text style={styles.emptySubtext}>Create plans to easily manage memberships.</Text>
-                        </View>
-                    }
-                />
+                        )}
+                        contentContainerStyle={{ paddingBottom: spacing.xl }}
+                        ListEmptyComponent={
+                            <View style={styles.emptyState}>
+                                <Text style={styles.emptyText}>No plans found.</Text>
+                                <Text style={styles.emptySubtext}>Create plans to easily manage memberships.</Text>
+                            </View>
+                        }
+                    />
+                )}
             </View>
 
             <View style={styles.fabContainer}>
@@ -171,7 +232,7 @@ export default function ManagePlansScreen({ navigation }) {
             >
                 <SafeAreaView style={styles.modalContainer}>
                     <View style={styles.modalHeader}>
-                        <Text style={typography.h3}>Add Plan</Text>
+                        <Text style={typography.h3}>{editingPlan ? 'Edit Plan' : 'Add Plan'}</Text>
                         <TouchableOpacity onPress={() => setModalVisible(false)}>
                             <X size={24} color={colors.text} />
                         </TouchableOpacity>
@@ -200,8 +261,8 @@ export default function ManagePlansScreen({ navigation }) {
                         />
 
                         <Button
-                            title="Save Plan"
-                            onPress={handleAddPlan}
+                            title={editingPlan ? 'Update Plan' : 'Save Plan'}
+                            onPress={handleSavePlan}
                             loading={adding}
                             style={{ marginTop: spacing.l }}
                         />

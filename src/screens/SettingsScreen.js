@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { borderRadius, colors, shadows, spacing, typography } from '../theme';
+import { useTheme } from '../theme';
 import { ArrowLeft, Bell, ChevronRight, CreditCard, FileText, HelpCircle, Lock, LogOut, Moon, Shield, Trash2, User } from 'lucide-react-native';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../services/supabase';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function SettingsScreen({ navigation }) {
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const { colors, spacing, borderRadius, typography, shadows } = useTheme();
     const [paymentReminders, setPaymentReminders] = useState(true);
     const [newMemberAlerts, setNewMemberAlerts] = useState(true);
 
@@ -34,6 +35,8 @@ export default function SettingsScreen({ navigation }) {
         );
     };
 
+    const styles = getStyles(colors, spacing, borderRadius, typography, shadows);
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
@@ -50,13 +53,9 @@ export default function SettingsScreen({ navigation }) {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Appearance</Text>
                     <View style={styles.card}>
-                        <SettingItem
-                            icon={Moon}
-                            label="Dark Mode"
-                            type="toggle"
-                            value={isDarkMode}
-                            onValueChange={setIsDarkMode}
-                        />
+                        <View style={{ padding: spacing.m, alignItems: 'center' }}>
+                            <ThemeToggle />
+                        </View>
                     </View>
                 </View>
 
@@ -70,6 +69,9 @@ export default function SettingsScreen({ navigation }) {
                             type="toggle"
                             value={paymentReminders}
                             onValueChange={setPaymentReminders}
+                            colors={colors}
+                            spacing={spacing}
+                            borderRadius={borderRadius}
                         />
                         <View style={styles.divider} />
                         <SettingItem
@@ -78,6 +80,9 @@ export default function SettingsScreen({ navigation }) {
                             type="toggle"
                             value={newMemberAlerts}
                             onValueChange={setNewMemberAlerts}
+                            colors={colors}
+                            spacing={spacing}
+                            borderRadius={borderRadius}
                         />
                     </View>
                 </View>
@@ -91,6 +96,9 @@ export default function SettingsScreen({ navigation }) {
                             label="Manage Plans"
                             type="link"
                             onPress={() => navigation.navigate('ManagePlans')}
+                            colors={colors}
+                            spacing={spacing}
+                            borderRadius={borderRadius}
                         />
                     </View>
                 </View>
@@ -104,6 +112,9 @@ export default function SettingsScreen({ navigation }) {
                             label="Change Password"
                             type="link"
                             onPress={() => Alert.alert('Coming Soon', 'Change password functionality will be available soon.')}
+                            colors={colors}
+                            spacing={spacing}
+                            borderRadius={borderRadius}
                         />
                         <View style={styles.divider} />
                         <SettingItem
@@ -113,6 +124,9 @@ export default function SettingsScreen({ navigation }) {
                             textColor={colors.error}
                             iconColor={colors.error}
                             onPress={handleDeleteAccount}
+                            colors={colors}
+                            spacing={spacing}
+                            borderRadius={borderRadius}
                         />
                     </View>
                 </View>
@@ -125,21 +139,30 @@ export default function SettingsScreen({ navigation }) {
                             icon={HelpCircle}
                             label="Help & Support"
                             type="link"
-                            onPress={() => { }}
+                            onPress={() => navigation.navigate('HelpSupport')}
+                            colors={colors}
+                            spacing={spacing}
+                            borderRadius={borderRadius}
                         />
                         <View style={styles.divider} />
                         <SettingItem
                             icon={Shield}
                             label="Privacy Policy"
                             type="link"
-                            onPress={() => { }}
+                            onPress={() => navigation.navigate('PrivacyPolicy')}
+                            colors={colors}
+                            spacing={spacing}
+                            borderRadius={borderRadius}
                         />
                         <View style={styles.divider} />
                         <SettingItem
                             icon={FileText}
                             label="Terms of Service"
                             type="link"
-                            onPress={() => { }}
+                            onPress={() => navigation.navigate('TermsOfUse')}
+                            colors={colors}
+                            spacing={spacing}
+                            borderRadius={borderRadius}
                         />
                     </View>
                 </View>
@@ -154,18 +177,18 @@ export default function SettingsScreen({ navigation }) {
     );
 }
 
-const SettingItem = ({ icon: Icon, label, type, value, onValueChange, onPress, textColor, iconColor }) => (
+const SettingItem = ({ icon: Icon, label, type, value, onValueChange, onPress, textColor, iconColor, colors, spacing, borderRadius }) => (
     <TouchableOpacity
-        style={styles.settingItem}
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.m }}
         onPress={type === 'link' ? onPress : undefined}
         disabled={type === 'toggle'}
         activeOpacity={0.7}
     >
-        <View style={styles.settingLeft}>
-            <View style={[styles.iconBox, iconColor && { backgroundColor: iconColor + '10' }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.m }}>
+            <View style={{ width: 36, height: 36, borderRadius: borderRadius.m, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', ...(iconColor && { backgroundColor: iconColor + '10' }) }}>
                 <Icon size={20} color={iconColor || colors.textSecondary} />
             </View>
-            <Text style={[styles.settingLabel, textColor && { color: textColor }]}>{label}</Text>
+            <Text style={{ fontSize: 16, color: textColor || colors.text, fontWeight: '500' }}>{label}</Text>
         </View>
 
         {type === 'toggle' ? (
@@ -181,7 +204,7 @@ const SettingItem = ({ icon: Icon, label, type, value, onValueChange, onPress, t
     </TouchableOpacity>
 );
 
-const styles = StyleSheet.create({
+const getStyles = (colors, spacing, borderRadius, typography, shadows) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.l, borderBottomWidth: 1, borderBottomColor: colors.border },
     backButton: { padding: spacing.xs },
@@ -189,11 +212,7 @@ const styles = StyleSheet.create({
     section: { marginBottom: spacing.xl },
     sectionTitle: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.s, marginLeft: spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
     card: { backgroundColor: colors.surface, borderRadius: borderRadius.l, overflow: 'hidden', ...shadows.small },
-    settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.m },
-    settingLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.m },
-    iconBox: { width: 36, height: 36, borderRadius: borderRadius.m, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
-    settingLabel: { fontSize: 16, color: colors.text, fontWeight: '500' },
-    divider: { height: 1, backgroundColor: colors.border, marginLeft: 56 }, // Indent divider to align with text
+    divider: { height: 1, backgroundColor: colors.border, marginLeft: 56 },
     footer: { alignItems: 'center', paddingBottom: spacing.xl },
     versionText: { color: colors.textTertiary, fontSize: 14, fontWeight: '500' },
     copyrightText: { color: colors.textTertiary, fontSize: 12, marginTop: 4 },
