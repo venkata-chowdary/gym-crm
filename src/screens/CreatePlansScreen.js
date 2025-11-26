@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../services/supabase';
 import { useAuthStore } from '../store/authStore';
 import { borderRadius, colors, shadows, spacing, typography } from '../theme';
-import { ArrowRight, Plus, Trash2, X } from 'lucide-react-native';
+import { ArrowRight, Plus, Trash2, X, ArrowLeft } from 'lucide-react-native';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { showToast } from '../components/Toast';
@@ -122,8 +122,14 @@ export default function CreatePlansScreen({ navigation }) {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <Text style={typography.h1}>Create Plans</Text>
-                <Text style={styles.subtitle}>Set up membership plans for your gym.</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                    <ArrowLeft size={24} color={colors.text} />
+                </TouchableOpacity>
+                <View>
+                    <Text style={typography.h1}>Create Plans</Text>
+                    <Text style={styles.subtitle}>Set up membership plans for your gym.</Text>
+                </View>
+                <View style={{ width: 40 }} />
             </View>
 
             <View style={styles.content}>
@@ -219,7 +225,8 @@ export default function CreatePlansScreen({ navigation }) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    header: { padding: spacing.l, paddingBottom: spacing.m },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.l, paddingBottom: spacing.m },
+    backButton: { width: 40, height: 40, borderRadius: borderRadius.m, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.small },
     subtitle: { ...typography.body, color: colors.textSecondary, marginTop: spacing.xs },
     content: { flex: 1, padding: spacing.l },
     emptyState: { alignItems: 'center', justifyContent: 'center', padding: spacing.xl },

@@ -276,7 +276,7 @@ export default function ManagePlansScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.l, borderBottomWidth: 1, borderBottomColor: colors.border },
-    backButton: { padding: spacing.xs },
+    backButton: { width: 40, height: 40, borderRadius: borderRadius.m, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.small },
     content: { flex: 1, padding: spacing.l },
     emptyState: { alignItems: 'center', justifyContent: 'center', padding: spacing.xl, marginTop: spacing.xl },
     emptyText: { ...typography.h3, color: colors.textSecondary, marginBottom: spacing.s },

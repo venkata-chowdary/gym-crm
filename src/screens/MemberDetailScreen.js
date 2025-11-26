@@ -145,7 +145,11 @@ export default function MemberDetailScreen({ route, navigation }) {
             setIsEditing(false);
             showToast('Member updated successfully!', 'success');
         } catch (error) {
-            showToast(error.message || 'Failed to update member', 'error');
+            if (error.code === '23505' || error.message?.includes('unique constraint') || error.message?.includes('members_phone_key')) {
+                showToast('A member with this phone number already exists.', 'error');
+            } else {
+                showToast(error.message || 'Failed to update member', 'error');
+            }
         } finally {
             setSaving(false);
         }
@@ -436,7 +440,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.l, paddingBottom: spacing.m },
-    headerButton: { padding: spacing.xs },
+    headerButton: { width: 40, height: 40, borderRadius: borderRadius.m, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.small },
     content: { padding: spacing.l, paddingTop: 0 },
 
     memberHeader: { alignItems: 'center', marginBottom: spacing.xl },

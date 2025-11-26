@@ -146,10 +146,10 @@ export default function SubscriptionPlansScreen({ navigation }) {
         <SafeAreaView style={styles.container}>
             <View style={styles.modalIndicator} />
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-                    <X size={24} color={colors.text} />
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                    <ArrowLeft size={24} color={colors.text} />
                 </TouchableOpacity>
-                <View style={{ paddingHorizontal: spacing.m }}>
+                <View style={{ flex: 1, paddingHorizontal: spacing.m }}>
                     <Text style={styles.title}>Unlock Pro Access</Text>
                     <Text style={styles.subtitle}>Choose the plan that fits your gym's growth.</Text>
                 </View>
@@ -268,14 +268,19 @@ const getStyles = (colors, spacing, typography, shadows, borderRadius, insets) =
         backgroundColor: colors.background,
     },
     header: {
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: spacing.l,
-        paddingTop: spacing.s,
-        paddingBottom: spacing.s,
+        paddingVertical: spacing.m,
     },
-    closeButton: {
-        alignSelf: 'flex-end',
-        padding: spacing.xs,
-        marginBottom: spacing.s,
+    backButton: {
+        width: 40,
+        height: 40,
+        borderRadius: borderRadius.m,
+        backgroundColor: colors.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...shadows.small,
     },
     title: {
         ...typography.h1,

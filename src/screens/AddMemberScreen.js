@@ -144,7 +144,11 @@ export default function AddMemberScreen({ navigation }) {
                 navigation.goBack();
             }, 500);
         } catch (error) {
-            showToast(error.message || 'Failed to add member', 'error');
+            if (error.code === '23505' || error.message?.includes('unique constraint') || error.message?.includes('members_phone_key')) {
+                showToast('A member with this phone number already exists.', 'error');
+            } else {
+                showToast(error.message || 'Failed to add member', 'error');
+            }
         } finally {
             setLoading(false);
         }
@@ -235,7 +239,7 @@ export default function AddMemberScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.l, paddingBottom: spacing.m },
-    headerButton: { width: 40 },
+    headerButton: { width: 40, height: 40, borderRadius: borderRadius.m, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.small },
     content: { padding: spacing.l, paddingTop: 0 },
     formGroup: { marginBottom: spacing.l },
     label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: spacing.s },

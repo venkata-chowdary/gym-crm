@@ -25,6 +25,7 @@ import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsOfUseScreen from './src/screens/TermsOfUseScreen';
 import SubscriptionPlansScreen from './src/screens/SubscriptionPlansScreen';
 import PaymentStatusScreen from './src/screens/PaymentStatusScreen';
+import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import Toast from './src/components/Toast';
 
 
@@ -98,6 +99,7 @@ export default function App() {
           <Stack.Screen name="AddMember" component={AddMemberScreen} options={{ headerShown: false }} />
           <Stack.Screen name="MemberDetail" component={MemberDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="RecordPayment" component={RecordPaymentScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
           <Stack.Screen name="CreatePlans" component={CreatePlansScreen} />
           <Stack.Screen name="ManagePlans" component={ManagePlansScreen} options={{ headerShown: false }} />

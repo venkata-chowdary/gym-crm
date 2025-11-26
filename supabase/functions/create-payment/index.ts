@@ -45,6 +45,17 @@ serve(async (req) => {
         const AUTH_TOKEN = Deno.env.get('INSTAMOJO_AUTH_TOKEN')
         const IS_SANDBOX = Deno.env.get('INSTAMOJO_IS_SANDBOX') === 'true'
 
+        if (!API_KEY || !AUTH_TOKEN) {
+            console.error('Missing Instamojo keys');
+            throw new Error('Server misconfiguration: Missing Instamojo keys');
+        }
+
+        console.log('Using Instamojo Config:', {
+            sandbox: IS_SANDBOX,
+            apiKeyPresent: !!API_KEY,
+            tokenPresent: !!AUTH_TOKEN
+        });
+
         const baseUrl = IS_SANDBOX
             ? 'https://test.instamojo.com/api/1.1/'
             : 'https://www.instamojo.com/api/1.1/';
@@ -61,6 +72,8 @@ serve(async (req) => {
             allow_repeated_payments: 'False',
         })
 
+        console.log('Sending Payload:', payload.toString());
+
         const response = await fetch(`${baseUrl}payment-requests/`, {
             method: 'POST',
             headers: {
@@ -71,7 +84,14 @@ serve(async (req) => {
             body: payload,
         })
 
-        const data = await response.json()
+        const responseText = await response.text();
+        console.log('Instamojo Response:', responseText);
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            throw new Error('Invalid JSON response from Instamojo: ' + responseText);
+        }
 
         if (!data.success) {
             console.error('Instamojo Error:', data)
@@ -105,6 +125,7 @@ serve(async (req) => {
         )
 
     } catch (error) {
+        console.error('Edge Function Error:', error);
         return new Response(
             JSON.stringify({ error: error.message }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }

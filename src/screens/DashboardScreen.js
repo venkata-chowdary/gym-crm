@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
     profilePlaceholder: { width: 48, height: 48, borderRadius: borderRadius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.small },
     searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, height: 56, borderRadius: borderRadius.full, paddingHorizontal: spacing.l, marginBottom: spacing.l, gap: spacing.s, ...shadows.small },
     searchText: { flex: 1, color: colors.text, fontSize: 16 },
-    chipsContainer: { marginBottom: spacing.xl, flexDirection: 'row' },
+    chipsContainer: { marginBottom: spacing.m, flexDirection: 'row', paddingVertical: spacing.s },
     chip: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, height: 40, borderRadius: borderRadius.full, paddingHorizontal: spacing.m, marginRight: spacing.s, gap: spacing.xs, ...shadows.small },
     chipText: { fontSize: 14, fontWeight: '600', color: colors.text },
     section: { marginBottom: spacing.xl },

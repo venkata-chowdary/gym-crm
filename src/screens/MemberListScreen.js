@@ -1,105 +1,145 @@
-import React, { useEffect, useState } from 'react';
-import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../services/supabase';
 import { useAuthStore } from '../store/authStore';
 import { borderRadius, colors, shadows, spacing, typography } from '../theme';
-import { Search, Plus, Phone, Mail, Edit2, UserX, UserCheck } from 'lucide-react-native';
+import { Search, Plus, Phone, Mail, Edit2, UserX, UserCheck, ArrowLeft } from 'lucide-react-native';
 import { MemberCardSkeleton } from '../components/SkeletonLoader';
 import { showToast } from '../components/Toast';
+
+const PAGE_SIZE = 15;
 
 export default function MemberListScreen({ navigation, route }) {
     const user = useAuthStore((state) => state.user);
     const [members, setMembers] = useState([]);
-    const [filteredMembers, setFilteredMembers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState(route.params?.filter || 'all');
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const [gymId, setGymId] = useState(null);
+    const [totalCount, setTotalCount] = useState(0);
 
+    // Initial Gym Fetch
     useEffect(() => {
-        fetchMembers();
-    }, []);
-
-    useEffect(() => {
-        const unsubscribe = navigation.addListener('focus', () => {
-            fetchMembers();
-            if (route.params?.searchQuery) {
-                setSearchQuery(route.params.searchQuery);
-                navigation.setParams({ searchQuery: null }); // Clear param so it doesn't persist
-            }
-        });
-        return unsubscribe;
-    }, [navigation, route.params]);
-
-    useEffect(() => {
-        filterMembers();
-    }, [searchQuery, activeFilter, members]);
-
-    const fetchMembers = async (isRefreshing = false) => {
-        try {
+        const fetchGymId = async () => {
             if (!user) return;
-
-            if (!isRefreshing) setLoading(true);
-
-            const { data: gymData, error: gymError } = await supabase
+            const { data, error } = await supabase
                 .from('gyms')
                 .select('id')
                 .eq('owner_id', user.id)
                 .single();
 
-            if (gymError || !gymData) {
-                console.error('Could not find gym:', gymError);
-                if (!isRefreshing) showToast('Could not load members', 'error');
-                return;
+            if (data) {
+                setGymId(data.id);
+            }
+        };
+        fetchGymId();
+    }, [user]);
+
+    // Fetch Members when dependencies change
+    useEffect(() => {
+        if (gymId) {
+            fetchMembers(0, true);
+        }
+    }, [gymId, activeFilter, searchQuery]);
+
+    // Handle Focus
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            if (route.params?.searchQuery) {
+                setSearchQuery(route.params.searchQuery);
+                navigation.setParams({ searchQuery: null });
+            } else if (gymId) {
+                // Optional: Refresh on focus if needed, but might be redundant with the above useEffect
+                // fetchMembers(0, true); 
+                // Let's rely on the user pulling to refresh or explicit changes for now to avoid double fetches,
+                // OR just silent refresh.
+                fetchMembers(0, true);
+            }
+        });
+        return unsubscribe;
+    }, [navigation, route.params, gymId]);
+
+    const fetchMembers = async (pageNumber = 0, shouldRefresh = false) => {
+        try {
+            if (!gymId) return;
+
+            if (shouldRefresh) {
+                setLoading(true);
+                setPage(0);
+                setHasMore(true);
+            } else {
+                setLoadingMore(true);
             }
 
-            const { data, error } = await supabase
+            let query = supabase
                 .from('members')
-                .select('*')
-                .eq('gym_id', gymData.id)
+                .select('*', { count: 'exact' })
+                .eq('gym_id', gymId)
                 .order('created_at', { ascending: false });
+
+            // Apply Filters
+            const today = new Date().toISOString().split('T')[0];
+            const sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+            if (activeFilter === 'active') {
+                query = query.gte('expiry_date', today);
+            } else if (activeFilter === 'expiring') {
+                query = query.gte('expiry_date', today).lte('expiry_date', sevenDaysLater);
+            } else if (activeFilter === 'expired') {
+                query = query.lt('expiry_date', today);
+            }
+
+            // Apply Search
+            if (searchQuery) {
+                query = query.or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`);
+            }
+
+            // Pagination
+            const from = pageNumber * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
+            query = query.range(from, to);
+
+            const { data, error, count } = await query;
 
             if (error) throw error;
 
-            setMembers(data || []);
-            if (isRefreshing) showToast('Members refreshed', 'success', 2000);
+            if (shouldRefresh) {
+                setMembers(data || []);
+                setTotalCount(count || 0);
+            } else {
+                setMembers(prev => [...prev, ...(data || [])]);
+            }
+
+            if ((data || []).length < PAGE_SIZE) {
+                setHasMore(false);
+            }
+
         } catch (error) {
-            showToast(error.message || 'Failed to load members', 'error');
+            console.error('Error fetching members:', error);
+            showToast('Failed to load members', 'error');
         } finally {
             setLoading(false);
+            setLoadingMore(false);
             setRefreshing(false);
         }
     };
 
     const onRefresh = () => {
         setRefreshing(true);
-        fetchMembers(true);
+        fetchMembers(0, true);
     };
 
-    const filterMembers = () => {
-        let filtered = [...members];
-
-        if (searchQuery) {
-            filtered = filtered.filter(member =>
-                member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                member.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                member.phone?.includes(searchQuery)
-            );
+    const loadMore = () => {
+        if (!loadingMore && !loading && hasMore) {
+            const nextPage = page + 1;
+            setPage(nextPage);
+            fetchMembers(nextPage, false);
         }
-
-        const today = new Date().toISOString().split('T')[0];
-        const sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-        if (activeFilter === 'active') {
-            filtered = filtered.filter(m => m.expiry_date >= today);
-        } else if (activeFilter === 'expiring') {
-            filtered = filtered.filter(m => m.expiry_date >= today && m.expiry_date <= sevenDaysLater);
-        } else if (activeFilter === 'expired') {
-            filtered = filtered.filter(m => m.expiry_date < today);
-        }
-
-        setFilteredMembers(filtered);
     };
 
     const getStatusInfo = (expiryDate) => {
@@ -224,11 +264,25 @@ export default function MemberListScreen({ navigation, route }) {
         );
     };
 
+    const renderFooter = () => {
+        if (!loadingMore) return null;
+        return (
+            <View style={{ paddingVertical: spacing.m }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+        );
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <Text style={typography.h1}>Members</Text>
-                <Text style={typography.bodySmall}>{filteredMembers.length} total</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                    <ArrowLeft size={24} color={colors.text} />
+                </TouchableOpacity>
+                <View style={styles.headerTitleContainer}>
+                    <Text style={typography.h1}>Members</Text>
+                    <Text style={styles.headerSubtitle}>{totalCount} total</Text>
+                </View>
             </View>
 
             <View style={styles.searchBar}>
@@ -249,7 +303,7 @@ export default function MemberListScreen({ navigation, route }) {
                 <FilterChip label="Expired" value="expired" active={activeFilter === 'expired'} />
             </ScrollView>
 
-            {loading ? (
+            {loading && !refreshing ? (
                 <View style={[styles.listContent, { paddingTop: spacing.m }]}>
                     <MemberCardSkeleton />
                     <MemberCardSkeleton />
@@ -257,11 +311,11 @@ export default function MemberListScreen({ navigation, route }) {
                 </View>
             ) : (
                 <FlatList
-                    data={filteredMembers}
+                    data={members}
                     keyExtractor={(item) => item.id.toString()}
                     renderItem={({ item }) => <MemberCard member={item} />}
                     contentContainerStyle={
-                        filteredMembers.length === 0
+                        members.length === 0
                             ? [styles.listContent, styles.emptyListContent]
                             : styles.listContent
                     }
@@ -274,6 +328,9 @@ export default function MemberListScreen({ navigation, route }) {
                             tintColor={colors.primary}
                         />
                     }
+                    onEndReached={loadMore}
+                    onEndReachedThreshold={0.5}
+                    ListFooterComponent={renderFooter}
                 />
             )}
 
@@ -291,10 +348,22 @@ export default function MemberListScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    header: { padding: spacing.l, paddingBottom: spacing.m },
+    header: { flexDirection: 'row', alignItems: 'center', padding: spacing.l, paddingBottom: spacing.m },
+    headerTitleContainer: { marginLeft: spacing.m, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    headerSubtitle: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: colors.primary,
+        backgroundColor: colors.primary + '15',
+        paddingHorizontal: spacing.m,
+        paddingVertical: 4,
+        borderRadius: borderRadius.full,
+        overflow: 'hidden',
+    },
+    backButton: { width: 40, height: 40, borderRadius: borderRadius.m, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.small },
     searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, marginHorizontal: spacing.l, marginBottom: spacing.m, paddingHorizontal: spacing.m, height: 48, borderRadius: borderRadius.m, borderWidth: 1, borderColor: colors.border, gap: spacing.s, ...shadows.small },
     searchInput: { flex: 1, fontSize: 15, color: colors.text },
-    filterContainer: { paddingLeft: spacing.l, marginBottom: spacing.xs, height: 36 },
+    filterContainer: { paddingLeft: spacing.l, marginBottom: spacing.xs, height: 50, paddingVertical: spacing.xs },
     filterChip: { paddingHorizontal: spacing.m, paddingVertical: spacing.xs, borderRadius: borderRadius.full, backgroundColor: colors.surface, marginRight: spacing.s, height: 32, justifyContent: 'center', ...shadows.small },
     filterChipActive: { backgroundColor: colors.primary },
     filterChipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },

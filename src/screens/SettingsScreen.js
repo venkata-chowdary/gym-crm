@@ -121,7 +121,7 @@ export default function SettingsScreen({ navigation }) {
                             icon={Lock}
                             label="Change Password"
                             type="link"
-                            onPress={() => Alert.alert('Coming Soon', 'Change password functionality will be available soon.')}
+                            onPress={() => navigation.navigate('ChangePassword')}
                             colors={colors}
                             spacing={spacing}
                             borderRadius={borderRadius}
@@ -137,6 +137,7 @@ export default function SettingsScreen({ navigation }) {
                             colors={colors}
                             spacing={spacing}
                             borderRadius={borderRadius}
+                            disabled={true}
                         />
                     </View>
                 </View>
@@ -145,16 +146,6 @@ export default function SettingsScreen({ navigation }) {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Support & About</Text>
                     <View style={styles.card}>
-                        <SettingItem
-                            icon={HelpCircle}
-                            label="Help & Support"
-                            type="link"
-                            onPress={() => navigation.navigate('HelpSupport')}
-                            colors={colors}
-                            spacing={spacing}
-                            borderRadius={borderRadius}
-                        />
-                        <View style={styles.divider} />
                         <SettingItem
                             icon={Shield}
                             label="Privacy Policy"
@@ -183,15 +174,15 @@ export default function SettingsScreen({ navigation }) {
                 </View>
 
             </ScrollView>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }
 
-const SettingItem = ({ icon: Icon, label, type, value, onValueChange, onPress, textColor, iconColor, colors, spacing, borderRadius }) => (
+const SettingItem = ({ icon: Icon, label, type, value, onValueChange, onPress, textColor, iconColor, colors, spacing, borderRadius, disabled }) => (
     <TouchableOpacity
-        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.m }}
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.m, opacity: disabled ? 0.5 : 1 }}
         onPress={type === 'link' ? onPress : undefined}
-        disabled={type === 'toggle'}
+        disabled={type === 'toggle' || disabled}
         activeOpacity={0.7}
     >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.m }}>

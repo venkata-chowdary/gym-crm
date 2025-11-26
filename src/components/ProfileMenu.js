@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { borderRadius, colors, shadows, spacing, typography } from '../theme';
-import { User, Settings, CreditCard, LogOut } from 'lucide-react-native';
+import { User, Settings, CreditCard, LogOut, HelpCircle } from 'lucide-react-native';
 
 export default function ProfileMenu({ visible, onClose, onSignOut, userEmail, userName, navigation }) {
     return (
@@ -37,6 +37,7 @@ export default function ProfileMenu({ visible, onClose, onSignOut, userEmail, us
                             <MenuItem icon={User} label="View Profile" onPress={() => { onClose(); navigation.navigate('Profile'); }} />
                             <MenuItem icon={Settings} label="Settings" onPress={() => { onClose(); navigation.navigate('Settings'); }} />
                             <MenuItem icon={CreditCard} label="Subscription" onPress={() => { onClose(); navigation.navigate('SubscriptionPlans'); }} />
+                            <MenuItem icon={HelpCircle} label="Help & Support" onPress={() => { onClose(); navigation.navigate('HelpSupport'); }} />
 
                             <View style={styles.divider} />
 
