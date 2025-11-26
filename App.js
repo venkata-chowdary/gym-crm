@@ -23,6 +23,8 @@ import AnalyticsScreen from './src/screens/AnalyticsScreen';
 import HelpSupportScreen from './src/screens/HelpSupportScreen';
 import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsOfUseScreen from './src/screens/TermsOfUseScreen';
+import SubscriptionPlansScreen from './src/screens/SubscriptionPlansScreen';
+import PaymentStatusScreen from './src/screens/PaymentStatusScreen';
 import Toast from './src/components/Toast';
 
 
@@ -104,6 +106,8 @@ export default function App() {
           <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ headerShown: false }} />
           <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TermsOfUse" component={TermsOfUseScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="SubscriptionPlans" component={SubscriptionPlansScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="PaymentStatus" component={PaymentStatusScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
       <Toast />

@@ -36,7 +36,7 @@ export default function ProfileMenu({ visible, onClose, onSignOut, userEmail, us
                             {/* Menu Items */}
                             <MenuItem icon={User} label="View Profile" onPress={() => { onClose(); navigation.navigate('Profile'); }} />
                             <MenuItem icon={Settings} label="Settings" onPress={() => { onClose(); navigation.navigate('Settings'); }} />
-                            <MenuItem icon={CreditCard} label="Subscription" onPress={() => { onClose(); }} />
+                            <MenuItem icon={CreditCard} label="Subscription" onPress={() => { onClose(); navigation.navigate('SubscriptionPlans'); }} />
 
                             <View style={styles.divider} />
 

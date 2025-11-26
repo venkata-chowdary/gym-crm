@@ -100,6 +100,16 @@ export default function SettingsScreen({ navigation }) {
                             spacing={spacing}
                             borderRadius={borderRadius}
                         />
+                        <View style={styles.divider} />
+                        <SettingItem
+                            icon={CreditCard}
+                            label="My Subscription"
+                            type="link"
+                            onPress={() => navigation.navigate('SubscriptionPlans')}
+                            colors={colors}
+                            spacing={spacing}
+                            borderRadius={borderRadius}
+                        />
                     </View>
                 </View>
 
